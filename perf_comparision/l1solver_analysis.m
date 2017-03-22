@@ -10,11 +10,12 @@ rng(0);
 
 
 %% Define parameters
-freq = 500;
+freq = [200, 400, 500, 600, 750];
+coeffs = [1, 0.3, 2.3, 1.5, 0.8];
+num_sinusoids = numel(freq);
+
 n = 200;
 fs = 2000;
-
-solver = 'l1magic';
 
 m_list = [1, 3, 10, 30, 50, 70, 90, 100];
 
@@ -41,7 +42,10 @@ end
 %% Generate the ground truth
 i = 0:(n-1);
 
-x_original = sin(2*pi*freq*i/fs)';
+x_original = zeros(n, 1);
+for idx=1:num_sinusoids
+    x_original = x_original + coeffs(idx)*sin(2*pi*freq(idx)*i/fs)';
+end
 sig_power= (sum(x_original.^2))/n;
 
 
@@ -73,7 +77,7 @@ for exp_idx=1:num_exp
     f_original = inv_basis_mat*x_original;
     f_noisy = inv_basis_mat*x;
 
-    [f_l1, r] = l1_magic(y, A, noise_sd*sqrt(m));
+    [f_l1, r] = l1solver(y, A, noise_sd*sqrt(m));
 
     x_l1 = basis_mat*f_l1;
 
@@ -88,11 +92,11 @@ figure()
 pcolor(m_list, noise_sd_list, reshape(rrmse, numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power(%)');
-title('L1 magic performance bechmark');
+title('L1 solver performance bechmark');
 colorbar;
 
-export_fig 'l1magic' '-dpng'
+export_fig 'l1solver' '-dpng'
 
 
 %% Save the rrmse
-save('l1magic.mat', 'exp_params', 'rrmse');
+save('l1solver.mat', 'exp_params', 'rrmse');

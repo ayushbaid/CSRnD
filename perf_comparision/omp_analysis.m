@@ -10,7 +10,9 @@ rng(0);
 
 
 %% Define parameters
-freq = 500;
+freq = [200, 400, 500, 600, 750];
+coeffs = [1, 0.3, 2.3, 1.5, 0.8];
+num_sinusoids = numel(freq);
 n = 200;
 fs = 2000;
 
@@ -41,7 +43,11 @@ end
 %% Generate the ground truth
 i = 0:(n-1);
 
-x_original = sin(2*pi*freq*i/fs)';
+x_original = zeros(n, 1);
+for idx=1:num_sinusoids
+    x_original = x_original + coeffs(idx)*sin(2*pi*freq(idx)*i/fs)';
+end
+
 sig_power= (sum(x_original.^2))/n;
 
 
