@@ -17,7 +17,7 @@ num_sinusoids = numel(freq);
 n = 200;
 m = 50;
 
-noise_sd = 0.15;
+noise_sd = 1;
 
 
 
@@ -48,34 +48,51 @@ inv_basis_mat = conj(basis_mat)/n;
 f_original = inv_basis_mat*x_original;
 f_noisy = inv_basis_mat*x;
 
-[f_omp, ~] = omp(y, A, noise_sd*sqrt(m));
+[f_omp, ~] = omp(y, A, noise_sd*sqrt(m), num_sinusoids*2);
 [f_l1, ~] = l1solver(y, A, noise_sd*sqrt(m));
+[f_iht, ~] = iht(y, A, noise_sd*sqrt(m), num_sinusoids*2);
 
 x_omp = basis_mat*f_omp;
 x_l1 = basis_mat*f_l1;
+x_iht = basis_mat*f_iht;
 
 %% Get L2 error in frequency domain
 err_omp = norm(abs(f_original) - abs(f_omp))/norm(abs(f_original));
 err_l1 = norm(abs(f_original) - abs(f_l1))/norm(abs(f_original));
+err_iht = norm(abs(f_original) - abs(f_iht))/norm(abs(f_original));
 
 fprintf('OMP relative error = %f\n', err_omp);
 fprintf('L1 solver relative error = %f\n', err_l1);
+fprintf('Iterative hard thresholding relative error = %f\n', err_iht);
+
+%% Compare sparsity
+sparse_omp = 1-sparsity_comp(f_omp, f_original, num_sinusoids*2)/(num_sinusoids*2);
+sparse_l1 = 1-sparsity_comp(f_l1, f_original, num_sinusoids*2)/(num_sinusoids*2);
+sparse_iht = 1-sparsity_comp(f_iht, f_original, num_sinusoids*2)/(num_sinusoids*2);
+
+fprintf('OMP sparsity miss index = %f\n', sparse_omp);
+fprintf('L1 solver sparsity miss index = %f\n', sparse_l1);
+fprintf('IHT sparsity miss index = %f\n', sparse_iht);
+
 
 %% Plots
 
 figure();
-subplot(221);
+subplot(231);
 plot(abs(f_original), 'r');
 legend('Original');
-subplot(222);
+subplot(232);
 plot(abs(f_noisy), 'k');
 legend('Noisy');
-subplot(223);
+subplot(233);
 plot(abs(f_omp), 'b');
 legend('OMP');
-subplot(224);
+subplot(234);
 plot(abs(f_l1), 'm');
-legend('L1-magic');
+legend('L1 solver');
+subplot(235);
+plot(abs(f_iht), 'c');
+legend('IHT');
 
 
 figure();
@@ -84,5 +101,6 @@ plot(abs(f_original), 'r');
 plot(abs(f_noisy), 'k');
 plot(abs(f_omp), 'b');
 plot(abs(f_l1), 'm');
+plot(abs(f_iht), 'c');
 hold off;
-legend('Original', 'Noisy', 'OMP', 'L1-magic');
+legend('Original', 'Noisy', 'OMP', 'L1 solver', 'IHT');

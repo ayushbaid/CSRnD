@@ -1,4 +1,4 @@
-function [f,r] = omp(y, A, e)
+function [f,r] = omp(y, A, e, s)
 
 m = size(A,1);
 n = size(A,2);
@@ -13,7 +13,7 @@ A_norms = sqrt(sum(A.^2, 1));
 
 f = zeros(n,1);
 
-while (iter_idx < n && norm(r, 2)>e)
+while (iter_idx < s && norm(r, 2)>e)
 
 %     projections = abs(bsxfun(@ldivide, r.'*A, A_norms));
     projections = abs(r'*A);
