@@ -6,7 +6,7 @@ clc;
 
 addpath(genpath(pwd));
 
-rng(0);
+rng('shuffle');
 
 
 %% Define parameters
@@ -22,6 +22,7 @@ noise_sd_list = [0, 5, 15, 30, 60, 100, 150, 200];
 
 
 %% Generate experiment params
+num_reps = 10; % Number of times to repeat the whole experiment
 num_exp = numel(m_list)*numel(noise_sd_list);
 
 exp_params = zeros(num_exp, 2);
@@ -53,48 +54,57 @@ sig_power= (sum(x_original.^2))/n;
 %% Generate/Load the measurement matrix and the basis matrix
 
 % Generate a Gaussian IID matrix
-sensing_mat_full = randn(n, n);
-basis_mat = dftmtx(n);
-inv_basis_mat = conj(basis_mat)/n;
+
+for rep_idx=1:num_reps
+    sensing_mat_full = randn(n, n);
+    basis_mat = dftmtx(n);
+    inv_basis_mat = conj(basis_mat)/n;
 
 
-for exp_idx=1:num_exp
-    fprintf('Exp #%d\n', exp_idx);
+    for exp_idx=1:num_exp
+        fprintf('Exp #%d\n', exp_idx);
 
-    m = ceil(exp_params(exp_idx, 1)*n/100);
-    noise_sd = sqrt(exp_params(exp_idx, 2)*sig_power/100);
+        m = ceil(exp_params(exp_idx, 1)*n/100);
+        noise_sd = sqrt(exp_params(exp_idx, 2)*sig_power/100);
 
-    x = x_original + randn(size(x_original))*noise_sd;
+        x = x_original + randn(size(x_original))*noise_sd;
 
-    sensing_mat = sensing_mat_full(1:m,:);
-    A = sensing_mat*basis_mat;
-
-
-    % Get the measurements
-    y = sensing_mat*x;
+        sensing_mat = sensing_mat_full(1:m,:);
+        A = sensing_mat*basis_mat;
 
 
-    % Solve
-    f_original = inv_basis_mat*x_original;
-    f_noisy = inv_basis_mat*x;
+        % Get the measurements
+        y = sensing_mat*x;
 
-    [f_omp, ~] = omp(y, A, noise_sd*sqrt(m), num_sinusoids*2);
-    [f_l1, ~] = l1solver(y, A, noise_sd*sqrt(m));
-    [f_iht, ~] = iht(y, A, noise_sd*sqrt(m), num_sinusoids*2);
 
-    % Get L2 error in frequency domain
-    rrmse(exp_idx, 1) = norm(abs(f_original) - abs(f_omp))/norm(abs(f_original));
-    rrmse(exp_idx, 2) = norm(abs(f_original) - abs(f_l1))/norm(abs(f_original));
-    rrmse(exp_idx, 3) = norm(abs(f_original) - abs(f_iht))/norm(abs(f_original));
+        % Solve
+        f_original = inv_basis_mat*x_original;
+        f_noisy = inv_basis_mat*x;
 
-    miss_index(exp_idx, 1) = 1 - ...
-        sparsity_comp(f_omp, f_original, num_sinusoids*2)/(num_sinusoids*2);
-    miss_index(exp_idx, 2) = 1 - ...
-        sparsity_comp(f_l1, f_original, num_sinusoids*2)/(num_sinusoids*2);
-    miss_index(exp_idx, 3) = 1 - ...
-        sparsity_comp(f_iht, f_original, num_sinusoids*2)/(num_sinusoids*2);
+        [f_omp, ~] = omp(y, A, noise_sd*sqrt(m), num_sinusoids*2);
+        [f_l1, ~] = l1solver(y, A, noise_sd*sqrt(m));
+        [f_iht, ~] = iht(y, A, noise_sd*sqrt(m), num_sinusoids*2);
 
+        % Get L2 error in frequency domain
+        rrmse(exp_idx, 1) = rrmse(exp_idx, 1) + ...
+                norm(abs(f_original) - abs(f_omp))/norm(abs(f_original));
+        rrmse(exp_idx, 2) = rrmse(exp_idx, 2) + ...
+                norm(abs(f_original) - abs(f_l1))/norm(abs(f_original));
+        rrmse(exp_idx, 3) = rrmse(exp_idx, 3) + ...
+                norm(abs(f_original) - abs(f_iht))/norm(abs(f_original));
+
+        miss_index(exp_idx, 1) = miss_index(exp_idx, 1) + 1 - ...
+            sparsity_comp(f_omp, f_original, num_sinusoids*2)/(num_sinusoids*2);
+        miss_index(exp_idx, 2) = miss_index(exp_idx, 2) + 1 - ...
+            sparsity_comp(f_l1, f_original, num_sinusoids*2)/(num_sinusoids*2);
+        miss_index(exp_idx, 3) = miss_index(exp_idx, 3) + 1 - ...
+            sparsity_comp(f_iht, f_original, num_sinusoids*2)/(num_sinusoids*2);
+
+    end
 end
+
+rrmse = rrmse./num_reps;
+miss_index = miss_index./num_reps;
 
 
 %% Plots
@@ -104,21 +114,21 @@ subplot(221);
 pcolor(m_list, noise_sd_list, reshape(rrmse(:, 1), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('OMP RRMSE');
+title('OMP');
 caxis([0, rrmse_max]);
 colorbar;
 subplot(222);
 pcolor(m_list, noise_sd_list, reshape(rrmse(:, 2), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('L1 solver RRMSE');
+title('L1 solver');
 caxis([0, rrmse_max]);
 colorbar;
 subplot(223);
 pcolor(m_list, noise_sd_list, reshape(rrmse(:, 3), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('Iterative Hard Thres. RRMSE');
+title('Iterative Hard Thres.');
 caxis([0, rrmse_max]);
 colorbar;
 
@@ -130,19 +140,19 @@ subplot(221);
 pcolor(m_list, noise_sd_list, reshape(miss_index(:, 1), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('OMP peaks miss ratio');
+title('OMP');
 colorbar;
 subplot(222);
 pcolor(m_list, noise_sd_list, reshape(miss_index(:, 2), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('L1 solver peaks miss ratio');
+title('L1 solver');
 colorbar;
 subplot(223);
 pcolor(m_list, noise_sd_list, reshape(miss_index(:, 3), numel(noise_sd_list), []));
 xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
-title('Iterative Hard Thres. peaks miss ratio');
+title('Iterative Hard Thres.');
 colorbar;
 export_fig 'miss' '-dpng'
 
