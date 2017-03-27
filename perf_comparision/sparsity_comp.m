@@ -1,26 +1,32 @@
-function count = sparsity_comp(f, f_ref, s)
+function miss_index = sparsity_comp(f, f_ref, s_bucket, s_ref)
 %sparsity_comp Compares the peak locations of f to f_ref; counts the peaks of
 % f_ref captured by f
 % Input Arguments:
 % * f: the query frequency response
 % * f_ref: reference frequency response
-% * s: the number of peaks to look for
+% * s_bucket: the number of peaks to search for in f
+% * s_ref: the number of peaks of f_ref we want to recover
 
-[~, q_idx] = sort(abs(f), 'descend');
-[~, ref_idx] = sort(abs(f_ref), 'descend');
+% As we have only real data, we will trim frequenciess
+half_idx = length(f)/2;
 
-q_peaks = q_idx(1:s);
-ref_peaks = ref_idx(1:s);
+[~, q_idx] = sort(abs(f(1:half_idx)), 'descend');
+[~, ref_idx] = sort(abs(f_ref(1:half_idx)), 'descend');
+
+q_peaks = q_idx(1:s_bucket);
+ref_peaks = ref_idx(1:s_ref);
 
 
 % Count the common indices
-indicator = false(length(f), 1);
-indicator(ref_peaks) = true;
+indicator = false(half_idx, 1);
+indicator(q_peaks) = true;
 
 count = 0;
 
-for i=1:s
-    if indicator(q_peaks(i))
+for i=1:s_ref
+    if indicator(ref_peaks(i))
         count = count+1;
     end
 end
+
+miss_index = 1-count/s_ref;

@@ -16,6 +16,9 @@ num_sinusoids = numel(freq);
 n = 200;
 fs = 2000;
 
+% Top p1 peaks in original should be in top p2 of ouput
+sparsity_comp_params = [2, 4];
+
 m_list = [1, 3, 10, 30, 50, 70, 90, 100];
 
 noise_sd_list = [0, 5, 15, 30, 60, 100, 150, 200];
@@ -93,12 +96,13 @@ for rep_idx=1:num_reps
         rrmse(exp_idx, 3) = rrmse(exp_idx, 3) + ...
                 norm(abs(f_original) - abs(f_iht))/norm(abs(f_original));
 
-        miss_index(exp_idx, 1) = miss_index(exp_idx, 1) + 1 - ...
-            sparsity_comp(f_omp, f_original, num_sinusoids*2)/(num_sinusoids*2);
-        miss_index(exp_idx, 2) = miss_index(exp_idx, 2) + 1 - ...
-            sparsity_comp(f_l1, f_original, num_sinusoids*2)/(num_sinusoids*2);
-        miss_index(exp_idx, 3) = miss_index(exp_idx, 3) + 1 - ...
-            sparsity_comp(f_iht, f_original, num_sinusoids*2)/(num_sinusoids*2);
+        miss_index(exp_idx, 1) = miss_index(exp_idx, 1) + sparsity_comp(...
+                f_omp, f_original, sparsity_comp_params(2), sparsity_comp_params(1));
+        miss_index(exp_idx, 2) = miss_index(exp_idx, 2) + sparsity_comp(...
+                f_l1, f_original, sparsity_comp_params(2), sparsity_comp_params(1));
+        miss_index(exp_idx, 3) = miss_index(exp_idx, 3) + sparsity_comp(...
+                f_iht, f_original, sparsity_comp_params(2), sparsity_comp_params(1));
+
 
     end
 end
@@ -154,7 +158,10 @@ xlabel('Measured points (%)');
 ylabel('Noise Power (%)');
 title('Iterative Hard Thres.');
 colorbar;
-export_fig 'miss' '-dpng'
+filename = sprintf('miss_%d_%d', sparsity_comp_params(1), ...
+                   sparsity_comp_params(2));
+export_fig(filename, '-dpng');
 
 %% Save
-save('analysis.mat', 'exp_params', 'rrmse', 'miss_index');
+save(sprintf('analysis_%d_%d.mat', sparsity_comp_params(1), ...
+        sparsity_comp_params(2)), 'exp_params', 'rrmse', 'miss_index');
